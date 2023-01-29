@@ -9,7 +9,7 @@ message Balance {
     string walletID=1;
     float amount =2;
     float balance =3;
-    float isAboveThreshold=4;
+    bool isAboveThreshold=4;
 }
 
 import "google/protobuf/timestamp.proto";

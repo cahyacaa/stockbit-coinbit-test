@@ -8,7 +8,12 @@ import (
 // EnsureStreamExists is a convenience wrapper for TopicManager.EnsureStreamExists
 func EnsureStreamExists(topic string, brokers []string) {
 	tm := createTopicManager(brokers)
-	defer tm.Close()
+	defer func(tm goka.TopicManager) {
+		err := tm.Close()
+		if err != nil {
+
+		}
+	}(tm)
 	err := tm.EnsureStreamExists(topic, 8)
 	if err != nil {
 		log.Printf("Error creating kafka topic %s: %v", topic, err)

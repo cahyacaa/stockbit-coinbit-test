@@ -3,13 +3,6 @@ package proto_codec
 import (
 	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
 	"github.com/golang/protobuf/proto"
-	"github.com/lovoo/goka"
-)
-
-var (
-	Deposits goka.Stream = "deposits"
-	group    goka.Group  = "balance"
-	Table    goka.Table  = goka.GroupTable(group)
 )
 
 type ProtoCodec struct{}

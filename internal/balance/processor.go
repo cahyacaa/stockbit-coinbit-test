@@ -2,9 +2,11 @@ package balance
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/cahyacaa/stockbit-coinbit-test/internal/model"
+	"fmt"
+	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
+	proto "github.com/golang/protobuf/proto"
 	"github.com/lovoo/goka"
+
 	"log"
 )
 
@@ -20,8 +22,8 @@ func (c *BalanceCodec) Encode(value interface{}) ([]byte, error) {
 	var msg []byte
 	var err error
 
-	if byteMsg, ok := value.(model.Balance); ok {
-		msg, err = json.Marshal(&byteMsg)
+	if byteMsg, ok := value.(deposit.Balance); ok {
+		msg, err = proto.Marshal(&byteMsg)
 		if err != nil {
 			return msg, nil
 		}
@@ -31,31 +33,30 @@ func (c *BalanceCodec) Encode(value interface{}) ([]byte, error) {
 }
 
 func (c *BalanceCodec) Decode(data []byte) (interface{}, error) {
-	var internalData model.Balance
-
-	err := json.Unmarshal(data, &internalData)
+	var balanceData deposit.Balance
+	err := proto.Unmarshal(data, &balanceData)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	return internalData, nil
+	return balanceData, nil
 }
 
 func balance(ctx goka.Context, msg interface{}) {
-	existingBalance := model.Balance{}
+	existingBalance := deposit.Balance{}
 	if v := ctx.Value(); v != nil {
-		if existingData, ok := v.(model.Balance); ok {
+		if existingData, ok := v.(deposit.Balance); ok {
 			existingBalance = existingData
 		}
 	}
 
-	newBalance, ok := msg.(model.Balance)
+	newBalance, ok := msg.(deposit.Balance)
 	if !ok {
-		newBalance = model.Balance{}
+		newBalance = deposit.Balance{}
 	}
 
 	newBalance.Balance = existingBalance.Balance + newBalance.Amount
-	newBalance.UpdateVersion = existingBalance.UpdateVersion + 1
+	fmt.Println(newBalance, existingBalance)
 
 	ctx.SetValue(newBalance)
 }

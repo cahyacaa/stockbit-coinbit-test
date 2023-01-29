@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/above_threshold"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/balance"
-	"github.com/cahyacaa/stockbit-coinbit-test/internal/model"
 	proto_codec "github.com/cahyacaa/stockbit-coinbit-test/internal/proto"
-	wallet "github.com/cahyacaa/stockbit-coinbit-test/model"
+	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
 	"io"
 	"log"
 	"net/http"
@@ -80,7 +79,7 @@ func Run(brokers []string, stream goka.Stream) {
 
 func send(emitter *goka.Emitter) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var d wallet.Wallet
+		var d deposit.Deposit
 
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -124,12 +123,18 @@ func feed(viewBalance, viewFlagger *goka.View) func(w http.ResponseWriter, r *ht
 			fmt.Fprintf(w, "%s not found!", user)
 			return
 		}
-		balanceData := val.(model.Balance)
+		balanceData := val.(deposit.Balance)
 		fmt.Printf("Latest balance for %s, is : %v\n", user, balanceData.Amount)
 
-		balanceData.AboveThreshold = flaggerData.(model.AboveThreshold)
+		balanceData.IsAboveThreshold = flaggerData.(deposit.DepositFlagger).IsAboveThreshold
 
-		out, err := json.Marshal(balanceData)
+		out, err := json.Marshal(struct {
+			Balance          float32 `json:"balance"`
+			IsAboveThreshold bool    `json:"isAboveThreshold"`
+		}{
+			Balance:          balanceData.Balance,
+			IsAboveThreshold: balanceData.IsAboveThreshold,
+		})
 
 		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(out)

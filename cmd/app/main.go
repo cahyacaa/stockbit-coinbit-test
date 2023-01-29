@@ -23,8 +23,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create topics if they do not already exist
+	above_threshold.PrepareTopics(brokers)
+
 	if *flaggerConsumer {
-		above_threshold.PrepareTopics(brokers)
 		go func() {
 			err := above_threshold.Run(ctx, brokers)
 			if err != nil {

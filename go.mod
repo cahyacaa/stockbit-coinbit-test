@@ -6,7 +6,6 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/lovoo/goka v1.1.7
-	github.com/robfig/cron v1.2.0
 )
 
 require (

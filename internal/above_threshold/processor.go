@@ -2,11 +2,13 @@ package above_threshold
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/cahyacaa/stockbit-coinbit-test/internal/model"
+	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
+	proto "github.com/golang/protobuf/proto"
 	"github.com/lovoo/goka"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"log"
 	"time"
 )
@@ -23,8 +25,8 @@ func (c *AboveThresholdCodec) Encode(value interface{}) ([]byte, error) {
 	var msg []byte
 	var err error
 
-	if byteMsg, ok := value.(model.AboveThreshold); ok {
-		msg, err = json.Marshal(&byteMsg)
+	if byteMsg, ok := value.(deposit.DepositFlagger); ok {
+		msg, err = proto.Marshal(&byteMsg)
 		if err != nil {
 			return msg, nil
 		}
@@ -34,47 +36,39 @@ func (c *AboveThresholdCodec) Encode(value interface{}) ([]byte, error) {
 }
 
 func (c *AboveThresholdCodec) Decode(data []byte) (interface{}, error) {
-	//var m wallet.Wallet
-	var internalData model.AboveThreshold
-	//if err := proto.Unmarshal(data, &m); err != nil {
-	err := json.Unmarshal(data, &internalData)
-	if err != nil {
-		return []byte{}, err
-	}
-	//}
+	var m deposit.DepositFlagger
 
-	//output := model.AboveThreshold{
-	//	WalletID: m.WalletId,
-	//	Amount:   m.Amount,
-	//}
-	return internalData, nil
-}
-func Flagger(ctx goka.Context, msg interface{}) {
-	var existingWalletData, newWalletData model.AboveThreshold
-	if v := ctx.Value(); v != nil {
-		existingWalletData = v.(model.AboveThreshold)
+	if err := proto.Unmarshal(data, &m); err != nil {
+		return m, err
 	}
-	if messageData, ok := msg.(model.AboveThreshold); ok {
+	return m, nil
+}
+
+func Flagger(ctx goka.Context, msg interface{}) {
+	var existingWalletData, newWalletData deposit.DepositFlagger
+	if v := ctx.Value(); v != nil {
+		existingWalletData = v.(deposit.DepositFlagger)
+	}
+	if messageData, ok := msg.(deposit.DepositFlagger); ok {
 		newWalletData = messageData
 	}
 
 	newWalletData.TimeWindowBalance = existingWalletData.TimeWindowBalance + newWalletData.Amount
 	newWalletData.TimeExpired = existingWalletData.TimeExpired
 
-	if existingWalletData.WalletID == "" || existingWalletData.TimeExpired.IsZero() {
-		newWalletData.TimeExpired = time.Now().Add(10 * time.Minute)
+	if existingWalletData.WalletID == "" || existingWalletData.TimeExpired.AsTime().IsZero() {
+		newWalletData.TimeExpired = timestamppb.New(time.Now().Add(2 * time.Minute))
 	} else {
-		if existingWalletData.TimeExpired.After(time.Now()) && newWalletData.TimeWindowBalance >= 10000 {
+		if existingWalletData.TimeExpired.AsTime().After(time.Now()) && newWalletData.TimeWindowBalance >= 10000 {
 			newWalletData.IsAboveThreshold = true
 		}
 
-		if existingWalletData.TimeExpired.Before(time.Now()) {
+		if existingWalletData.TimeExpired.AsTime().Before(time.Now()) {
 			newWalletData.TimeWindowBalance = newWalletData.Amount
-			newWalletData.TimeExpired = existingWalletData.TimeExpired.Add(10 * time.Minute)
+			newWalletData.TimeExpired = timestamppb.New(existingWalletData.TimeExpired.AsTime().Add(2 * time.Minute))
 		}
 	}
 
-	newWalletData.UpdateVersion = existingWalletData.UpdateVersion + 1
 	fmt.Println(newWalletData, existingWalletData)
 	ctx.SetValue(newWalletData)
 }
