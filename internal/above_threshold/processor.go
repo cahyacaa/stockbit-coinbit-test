@@ -2,7 +2,6 @@ package above_threshold
 
 import (
 	"context"
-	"fmt"
 	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
 	proto "github.com/golang/protobuf/proto"
@@ -14,9 +13,10 @@ import (
 )
 
 var (
-	Deposits goka.Stream = "deposits"
-	group    goka.Group  = "above_threshold"
-	Table                = goka.GroupTable(group)
+	Deposits   goka.Stream   = "deposits"
+	group      goka.Group    = "above_threshold"
+	Table                    = goka.GroupTable(group)
+	timeWindow time.Duration = time.Minute * 2
 )
 
 type AboveThresholdCodec struct{}
@@ -57,7 +57,7 @@ func Flagger(ctx goka.Context, msg interface{}) {
 	newWalletData.TimeExpired = existingWalletData.TimeExpired
 
 	if existingWalletData.WalletID == "" || existingWalletData.TimeExpired.AsTime().IsZero() {
-		newWalletData.TimeExpired = timestamppb.New(time.Now().Add(2 * time.Minute))
+		newWalletData.TimeExpired = timestamppb.New(time.Now().Add(timeWindow))
 	} else {
 		if existingWalletData.TimeExpired.AsTime().After(time.Now()) && newWalletData.TimeWindowBalance >= 10000 {
 			newWalletData.IsAboveThreshold = true
@@ -65,11 +65,10 @@ func Flagger(ctx goka.Context, msg interface{}) {
 
 		if existingWalletData.TimeExpired.AsTime().Before(time.Now()) {
 			newWalletData.TimeWindowBalance = newWalletData.Amount
-			newWalletData.TimeExpired = timestamppb.New(existingWalletData.TimeExpired.AsTime().Add(2 * time.Minute))
+			newWalletData.TimeExpired = timestamppb.New(existingWalletData.TimeExpired.AsTime().Add(timeWindow))
 		}
 	}
 
-	fmt.Println(newWalletData, existingWalletData)
 	ctx.SetValue(newWalletData)
 }
 
@@ -92,7 +91,7 @@ func Run(ctx context.Context, brokers []string) func() error {
 			log.Println(err)
 		}
 
-		log.Println("kafka instance running")
+		log.Println("deposit flagger is running")
 		return p.Run(ctx)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/lovoo/goka"
 
@@ -18,6 +19,9 @@ var (
 
 type BalanceCodec struct{}
 
+func PrepareTopics(brokers []string) {
+	topic_init.EnsureStreamExists(string(Deposits), brokers)
+}
 func (c *BalanceCodec) Encode(value interface{}) ([]byte, error) {
 	var msg []byte
 	var err error

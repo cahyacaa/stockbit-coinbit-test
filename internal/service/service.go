@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/above_threshold"
@@ -16,7 +15,7 @@ import (
 	"github.com/lovoo/goka"
 )
 
-func Run(brokers []string, stream goka.Stream) {
+func Init(brokers []string, stream goka.Stream) (*mux.Router, *goka.View, *goka.View, *goka.Emitter) {
 	viewBalance, err := goka.NewView(brokers, balance.Table, new(balance.BalanceCodec))
 	if err != nil {
 		log.Fatal(err)
@@ -27,30 +26,10 @@ func Run(brokers []string, stream goka.Stream) {
 		log.Fatal(err)
 	}
 
-	go func() {
-		err := viewBalance.Run(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	go func() {
-		err := viewFlagger.Run(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
 	emitter, err := goka.NewEmitter(brokers, stream, new(proto_codec.ProtoCodec))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer func(emitter *goka.Emitter) {
-		err := emitter.Finish()
-		if err != nil {
-			log.Println(err)
-		}
-	}(emitter)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/deposits", send(emitter)).Methods("POST")
@@ -72,9 +51,7 @@ func Run(brokers []string, stream goka.Stream) {
 		}
 
 	}).Methods("GET")
-
-	log.Printf("Listen port 8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	return router, viewFlagger, viewBalance, emitter
 }
 
 func send(emitter *goka.Emitter) func(w http.ResponseWriter, r *http.Request) {
@@ -124,14 +101,16 @@ func feed(viewBalance, viewFlagger *goka.View) func(w http.ResponseWriter, r *ht
 			return
 		}
 		balanceData := val.(deposit.Balance)
-		fmt.Printf("Latest balance for %s, is : %v\n", user, balanceData.Amount)
+		log.Printf("Latest balance for wallet ID %s, is : %v\n", user, balanceData.Balance)
 
 		balanceData.IsAboveThreshold = flaggerData.(deposit.DepositFlagger).IsAboveThreshold
 
 		out, err := json.Marshal(struct {
+			Message          string  `json:"message"`
 			Balance          float32 `json:"balance"`
 			IsAboveThreshold bool    `json:"isAboveThreshold"`
 		}{
+			Message:          "OK",
 			Balance:          balanceData.Balance,
 			IsAboveThreshold: balanceData.IsAboveThreshold,
 		})

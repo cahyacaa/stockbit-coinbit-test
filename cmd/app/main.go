@@ -7,6 +7,7 @@ import (
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/balance"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/service"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,6 +22,13 @@ var (
 func main() {
 	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
+
+	//init http service
+	router, viewFlagger, viewBalance, emitter := service.Init(brokers, above_threshold.Deposits)
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: router,
+	}
 
 	// Create topics if they do not already exist
 	above_threshold.PrepareTopics(brokers)
@@ -40,8 +48,27 @@ func main() {
 			}
 		}()
 	} else {
+
 		go func() {
-			service.Run(brokers, above_threshold.Deposits)
+			err := viewFlagger.Run(context.Background())
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		go func() {
+			err := viewBalance.Run(context.Background())
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		go func() {
+			log.Println("Http server is running")
+			err := srv.ListenAndServe()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}()
 	}
 
@@ -51,6 +78,14 @@ func main() {
 	go func() {
 		sig := <-sigs
 		log.Println(sig.String())
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = emitter.Finish()
+		if err != nil {
+			log.Fatal(err)
+		}
 		done <- true
 		cancel()
 	}()
