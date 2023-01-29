@@ -2,6 +2,7 @@ package above_threshold
 
 import (
 	"context"
+	"fmt"
 	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
 	proto "github.com/golang/protobuf/proto"
@@ -56,19 +57,19 @@ func Flagger(ctx goka.Context, msg interface{}) {
 	newWalletData.TimeWindowBalance = existingWalletData.TimeWindowBalance + newWalletData.Amount
 	newWalletData.TimeExpired = existingWalletData.TimeExpired
 
-	if existingWalletData.WalletID == "" || existingWalletData.TimeExpired.AsTime().IsZero() {
-		newWalletData.TimeExpired = timestamppb.New(time.Now().Add(timeWindow))
+	if existingWalletData.WalletID == "" || existingWalletData.TimeExpired.AsTime().Local().IsZero() {
+		newWalletData.TimeExpired = timestamppb.New(time.Now().Local().Add(timeWindow))
 	} else {
-		if existingWalletData.TimeExpired.AsTime().After(time.Now()) && newWalletData.TimeWindowBalance >= 10000 {
+		if existingWalletData.TimeExpired.AsTime().Local().After(time.Now()) && newWalletData.TimeWindowBalance >= 10000 {
 			newWalletData.IsAboveThreshold = true
 		}
 
-		if existingWalletData.TimeExpired.AsTime().Before(time.Now()) {
+		if existingWalletData.TimeExpired.AsTime().Local().Before(time.Now()) {
 			newWalletData.TimeWindowBalance = newWalletData.Amount
-			newWalletData.TimeExpired = timestamppb.New(existingWalletData.TimeExpired.AsTime().Add(timeWindow))
+			newWalletData.TimeExpired = timestamppb.New(existingWalletData.TimeExpired.AsTime().Local().Add(timeWindow))
 		}
 	}
-
+	fmt.Println(existingWalletData.TimeExpired.AsTime().Local(), newWalletData.TimeExpired.AsTime().Local())
 	ctx.SetValue(newWalletData)
 }
 
