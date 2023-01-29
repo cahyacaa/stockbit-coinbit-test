@@ -1,0 +1,7 @@
+syntax="proto3";
+
+message Wallet {
+    string  wallet_id=1;
+    float amount =2;
+}
+
