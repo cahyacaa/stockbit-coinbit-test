@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/above_threshold"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/balance"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/service"
 	"log"
 	"os"
@@ -12,8 +13,9 @@ import (
 )
 
 var (
-	brokers  = []string{"localhost:9092"}
-	deposits = flag.Bool("deposits", false, "run collector processor")
+	brokers         = []string{"localhost:9092"}
+	flaggerConsumer = flag.Bool("depositFlagger", false, "run above_threshold flagger processor")
+	balanceConsumer = flag.Bool("balance", false, "run balance processor")
 )
 
 func main() {
@@ -21,12 +23,19 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create topics if they do not already exist
-	if *deposits {
+	if *flaggerConsumer {
 		above_threshold.PrepareTopics(brokers)
 		go func() {
 			err := above_threshold.Run(ctx, brokers)
 			if err != nil {
-				log.Fatal(err())
+				log.Println(err())
+			}
+		}()
+	} else if *balanceConsumer {
+		go func() {
+			err := balance.Run(ctx, brokers)
+			if err != nil {
+				log.Println(err())
 			}
 		}()
 	} else {

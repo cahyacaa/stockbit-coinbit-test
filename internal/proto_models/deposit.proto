@@ -1,0 +1,23 @@
+syntax="proto3";
+
+message Deposit {
+    string  walletID=1;
+    float amount =2;
+}
+
+message Balance {
+    string walletID=1;
+    float amount =2;
+    float balance =3;
+    float isAboveThreshold=4;
+}
+
+import "google/protobuf/timestamp.proto";
+
+message DepositFlagger {
+    string  walletID=1;
+    float amount =2;
+    float timeWindowBalance=3;
+    bool isAboveThreshold=4;
+    google.protobuf.Timestamp TimeExpired=5;
+}

@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/above_threshold"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/balance"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/model"
+	proto_codec "github.com/cahyacaa/stockbit-coinbit-test/internal/proto"
 	wallet "github.com/cahyacaa/stockbit-coinbit-test/model"
 	"io"
 	"log"
@@ -15,21 +18,44 @@ import (
 )
 
 func Run(brokers []string, stream goka.Stream) {
-	view, err := goka.NewView(brokers, above_threshold.Table, new(above_threshold.AboveThresholdCodec))
+	viewBalance, err := goka.NewView(brokers, balance.Table, new(balance.BalanceCodec))
 	if err != nil {
 		log.Fatal(err)
 	}
-	go view.Run(context.Background())
 
-	emitter, err := goka.NewEmitter(brokers, stream, new(above_threshold.AboveThresholdCodec))
+	viewFlagger, errFlagger := goka.NewView(brokers, above_threshold.Table, new(above_threshold.AboveThresholdCodec))
+	if errFlagger != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		err := viewBalance.Run(context.Background())
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		err := viewFlagger.Run(context.Background())
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	emitter, err := goka.NewEmitter(brokers, stream, new(proto_codec.ProtoCodec))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer emitter.Finish()
+	defer func(emitter *goka.Emitter) {
+		err := emitter.Finish()
+		if err != nil {
+			log.Println(err)
+		}
+	}(emitter)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/deposits", send(emitter, stream)).Methods("POST")
-	router.HandleFunc("/{wallet_id}/details", feed(view)).Methods("GET")
+	router.HandleFunc("/deposits", send(emitter)).Methods("POST")
+	router.HandleFunc("/{wallet_id}/details", feed(viewBalance, viewFlagger)).Methods("GET")
 	router.HandleFunc("/test", func(writer http.ResponseWriter, request *http.Request) {
 		out, err := json.Marshal(map[string]string{
 			"message": "OK",
@@ -52,7 +78,7 @@ func Run(brokers []string, stream goka.Stream) {
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
-func send(emitter *goka.Emitter, stream goka.Stream) func(w http.ResponseWriter, r *http.Request) {
+func send(emitter *goka.Emitter) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var d wallet.Wallet
 
@@ -67,7 +93,7 @@ func send(emitter *goka.Emitter, stream goka.Stream) func(w http.ResponseWriter,
 			fmt.Fprintf(w, "error: %v", err)
 			return
 		}
-		err = emitter.EmitSync(d.WalletId, d)
+		err = emitter.EmitSync(d.WalletID, d)
 
 		if err != nil {
 			fmt.Fprintf(w, "error: %v", err)
@@ -87,20 +113,23 @@ func send(emitter *goka.Emitter, stream goka.Stream) func(w http.ResponseWriter,
 	}
 }
 
-func feed(view *goka.View) func(w http.ResponseWriter, r *http.Request) {
+func feed(viewBalance, viewFlagger *goka.View) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := mux.Vars(r)["wallet_id"]
-		val, _ := view.Get(user)
-		fmt.Println(val)
+		val, _ := viewBalance.Get(user)
+
+		flaggerData, _ := viewFlagger.Get(user)
 
 		if val == nil {
 			fmt.Fprintf(w, "%s not found!", user)
 			return
 		}
-		messages := val.(wallet.Wallet)
-		fmt.Printf("Latest balance for %s, is : %v\n", user, messages.Amount)
+		balanceData := val.(model.Balance)
+		fmt.Printf("Latest balance for %s, is : %v\n", user, balanceData.Amount)
 
-		out, err := json.Marshal(messages)
+		balanceData.AboveThreshold = flaggerData.(model.AboveThreshold)
+
+		out, err := json.Marshal(balanceData)
 
 		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(out)

@@ -1,11 +1,9 @@
-package above_threshold
+package balance
 
 import (
 	"context"
-	"fmt"
-	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
-	wallet "github.com/cahyacaa/stockbit-coinbit-test/model"
-	"github.com/golang/protobuf/proto"
+	"encoding/json"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/model"
 	"github.com/lovoo/goka"
 	"log"
 )
@@ -16,34 +14,50 @@ var (
 	Table    goka.Table  = goka.GroupTable(group)
 )
 
-type WalletCodec struct{}
+type BalanceCodec struct{}
 
-func (c *WalletCodec) Encode(value interface{}) ([]byte, error) {
-	byteMsg := value.(wallet.Wallet)
-	msg, err := proto.Marshal(&byteMsg)
+func (c *BalanceCodec) Encode(value interface{}) ([]byte, error) {
+	var msg []byte
+	var err error
+
+	if byteMsg, ok := value.(model.Balance); ok {
+		msg, err = json.Marshal(&byteMsg)
+		if err != nil {
+			return msg, nil
+		}
+	}
+
 	return msg, err
 }
 
-func (c *WalletCodec) Decode(data []byte) (interface{}, error) {
-	var m wallet.Wallet
-	err := proto.Unmarshal(data, &m)
-	return m, err
-}
+func (c *BalanceCodec) Decode(data []byte) (interface{}, error) {
+	var internalData model.Balance
 
-func collect(ctx goka.Context, msg interface{}) {
-	wl := wallet.Wallet{}
-	if v := ctx.Value(); v != nil {
-		wl = v.(wallet.Wallet)
+	err := json.Unmarshal(data, &internalData)
+	if err != nil {
+		return []byte{}, err
 	}
 
-	m := msg.(wallet.Wallet)
-	//m.Balance += wl.Balance
-	fmt.Println(wl)
-	ctx.SetValue(m)
+	return internalData, nil
 }
 
-func PrepareTopics(brokers []string) {
-	topic_init.EnsureStreamExists(string(Deposits), brokers)
+func balance(ctx goka.Context, msg interface{}) {
+	existingBalance := model.Balance{}
+	if v := ctx.Value(); v != nil {
+		if existingData, ok := v.(model.Balance); ok {
+			existingBalance = existingData
+		}
+	}
+
+	newBalance, ok := msg.(model.Balance)
+	if !ok {
+		newBalance = model.Balance{}
+	}
+
+	newBalance.Balance = existingBalance.Balance + newBalance.Amount
+	newBalance.UpdateVersion = existingBalance.UpdateVersion + 1
+
+	ctx.SetValue(newBalance)
 }
 
 func Run(ctx context.Context, brokers []string) func() error {
@@ -53,15 +67,15 @@ func Run(ctx context.Context, brokers []string) func() error {
 
 	return func() error {
 		g := goka.DefineGroup(group,
-			goka.Input(Deposits, new(WalletCodec), collect),
-			goka.Persist(new(WalletCodec)),
+			goka.Input(Deposits, new(BalanceCodec), balance),
+			goka.Persist(new(BalanceCodec)),
 		)
 		p, err := goka.NewProcessor(brokers, g, goka.WithTopicManagerBuilder(goka.TopicManagerBuilderWithTopicManagerConfig(tmc)))
 		if err != nil {
 			return err
 		}
 
-		log.Println("kafka instance running")
+		log.Println("balance service running")
 		return p.Run(ctx)
 	}
 }
