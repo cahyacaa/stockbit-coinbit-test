@@ -37,18 +37,18 @@ func main() {
 		go func() {
 			err := above_threshold.Run(ctx, brokers)
 			if err != nil {
-				log.Println(err())
+				log.Fatal(err())
 			}
 		}()
 	} else if *balanceConsumer {
 		go func() {
 			err := balance.Run(ctx, brokers)
 			if err != nil {
-				log.Println(err())
+				log.Fatal(err())
 			}
 		}()
 	} else {
-
+		//view topic
 		go func() {
 			err := viewFlagger.Run(context.Background())
 			if err != nil {

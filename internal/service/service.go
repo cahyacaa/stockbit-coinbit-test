@@ -6,7 +6,7 @@ import (
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/above_threshold"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/balance"
 	proto_codec "github.com/cahyacaa/stockbit-coinbit-test/internal/proto"
-	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/proto/proto_models"
 	"io"
 	"log"
 	"net/http"

@@ -3,7 +3,7 @@ package above_threshold
 import (
 	"context"
 	"fmt"
-	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/proto/proto_models"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/lovoo/goka"
@@ -66,7 +66,7 @@ func Flagger(ctx goka.Context, msg interface{}) {
 
 		if existingWalletData.TimeExpired.AsTime().Local().Before(time.Now()) {
 			newWalletData.TimeWindowBalance = newWalletData.Amount
-			newWalletData.TimeExpired = timestamppb.New(existingWalletData.TimeExpired.AsTime().Local().Add(timeWindow))
+			newWalletData.TimeExpired = timestamppb.New(time.Now().Local().Add(timeWindow))
 		}
 	}
 	fmt.Println(existingWalletData.TimeExpired.AsTime().Local(), newWalletData.TimeExpired.AsTime().Local())

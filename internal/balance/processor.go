@@ -3,7 +3,7 @@ package balance
 import (
 	"context"
 	"fmt"
-	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/proto/proto_models"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/lovoo/goka"

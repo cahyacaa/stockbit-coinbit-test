@@ -1,7 +1,7 @@
 package proto_codec
 
 import (
-	deposit "github.com/cahyacaa/stockbit-coinbit-test/internal/proto_models"
+	"github.com/cahyacaa/stockbit-coinbit-test/internal/proto/proto_models"
 	"github.com/golang/protobuf/proto"
 )
 
