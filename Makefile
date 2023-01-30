@@ -1,8 +1,8 @@
 http-service :
 	go run cmd/app/main.go
 
-balance-consumer :
+balance-service :
 	go run cmd/app/main.go -balance
 
-deposit-flagger-consumer :
+deposit-flagger-service :
 	go run cmd/app/main.go -depositFlagger

@@ -2,9 +2,7 @@ package balance
 
 import (
 	"context"
-	"fmt"
 	"github.com/cahyacaa/stockbit-coinbit-test/internal/proto/proto_models"
-	"github.com/cahyacaa/stockbit-coinbit-test/internal/topic_init"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/lovoo/goka"
 
@@ -19,9 +17,6 @@ var (
 
 type BalanceCodec struct{}
 
-func PrepareTopics(brokers []string) {
-	topic_init.EnsureStreamExists(string(Deposits), brokers)
-}
 func (c *BalanceCodec) Encode(value interface{}) ([]byte, error) {
 	var msg []byte
 	var err error
@@ -60,7 +55,6 @@ func balance(ctx goka.Context, msg interface{}) {
 	}
 
 	newBalance.Balance = existingBalance.Balance + newBalance.Amount
-	fmt.Println(newBalance, existingBalance)
 
 	ctx.SetValue(newBalance)
 }

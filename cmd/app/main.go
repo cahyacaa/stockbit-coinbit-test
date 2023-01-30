@@ -23,7 +23,7 @@ func main() {
 	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	//init http service
+	//init http service and goka view
 	router, viewFlagger, viewBalance, emitter := service.Init(brokers, above_threshold.Deposits)
 	srv := &http.Server{
 		Addr:    ":8080",
@@ -48,7 +48,7 @@ func main() {
 			}
 		}()
 	} else {
-		//view topic
+		//running goka view topic service
 		go func() {
 			err := viewFlagger.Run(context.Background())
 			if err != nil {
@@ -63,6 +63,7 @@ func main() {
 			}
 		}()
 
+		//running http server
 		go func() {
 			log.Println("Http server is running")
 			err := srv.ListenAndServe()

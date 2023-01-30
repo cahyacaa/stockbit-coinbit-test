@@ -64,6 +64,7 @@ func send(emitter *goka.Emitter) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		//unmarshal json from client first then marshal it to protobuf
 		err = json.Unmarshal(b, &d)
 		if err != nil {
 			fmt.Fprintf(w, "error: %v", err)
